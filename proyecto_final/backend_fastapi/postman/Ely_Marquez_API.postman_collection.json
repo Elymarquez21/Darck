@@ -1,0 +1,1449 @@
+{
+  "info": {
+    "name": "Ely Marquez API - Autenticación y Usuarios (Punto 18)",
+    "description": "Colección de pruebas para los endpoints de autenticación (registro, login, JWT, perfil) y gestión de usuarios (consulta, actualización, cambio de estado, eliminación), incluyendo casos correctos y casos de error. Sirve como evidencia del punto 18 (Pruebas con Postman).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:4000/api"
+    },
+    {
+      "key": "token_admin",
+      "value": ""
+    },
+    {
+      "key": "id_usuario_creado",
+      "value": ""
+    },
+    {
+      "key": "id_producto_creado",
+      "value": ""
+    },
+    {
+      "key": "id_servicio_creado",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Autenticación",
+      "item": [
+        {
+          "name": "1.1 Registro de usuario (cliente) - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 - usuario registrado', () => pm.response.to.have.status(201));",
+                  "pm.test('Respuesta incluye mensaje e id_usuario', () => {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data).to.have.property('mensaje');",
+                  "  pm.expect(data).to.have.property('id_usuario');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Camila\",\n  \"apellido\": \"Restrepo\",\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"10{{$timestamp}}\",\n  \"direccion\": \"Cra 50 # 10-20\",\n  \"telefono\": \"3011234567\",\n  \"email\": \"camila.restrepo{{$timestamp}}@correo.com\",\n  \"password\": \"ClaveSegura1!\"\n}"
+            },
+            "description": "Registro público de un cliente. Toda contraseña se guarda como hash (bcrypt), nunca en texto plano. La respuesta debe ser 201."
+          }
+        },
+        {
+          "name": "1.2 Registro de usuario - datos inválidos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 - datos inválidos', () => pm.response.to.have.status(400));",
+                  "pm.test('Respuesta incluye lista de errores', () => {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data).to.have.property('mensaje');",
+                  "  pm.expect(data).to.have.property('errores');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Camila\",\n  \"apellido\": \"Restrepo\",\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"123\",\n  \"direccion\": \"Cra\",\n  \"telefono\": \"12345\",\n  \"email\": \"correo-invalido\",\n  \"password\": \"123\"\n}"
+            },
+            "description": "Documento corto, dirección corta, teléfono no colombiano, correo sin formato válido y contraseña que no cumple la política. Debe rechazarse con 400 y el detalle de errores."
+          }
+        },
+        {
+          "name": "1.3 Login administrador - correcto (genera JWT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('La respuesta incluye un token JWT', () => {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data).to.have.property('token');",
+                  "  pm.expect(data.token.split('.').length).to.eql(3);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "if (data.token) { pm.collectionVariables.set('token_admin', data.token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@elymarquez.com\",\n  \"password\": \"admin1234\"\n}"
+            },
+            "description": "Inicio de sesión del administrador. La respuesta debe traer el token JWT (3 segmentos separados por '.'), que se guarda automáticamente en {{token_admin}} para las siguientes peticiones protegidas."
+          }
+        },
+        {
+          "name": "1.4 Login - credenciales inválidas (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 - credenciales inválidas', () => pm.response.to.have.status(401));",
+                  "pm.test('Respuesta no incluye token', () => {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data).to.not.have.property('token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@elymarquez.com\",\n  \"password\": \"claveIncorrecta\"\n}"
+            },
+            "description": "Contraseña incorrecta para un correo existente. Debe responder 401 sin generar token."
+          }
+        },
+        {
+          "name": "1.5 Perfil - ruta protegida con JWT (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 - acceso autorizado', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta incluye datos del usuario autenticado', () => {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data).to.have.property('correo');",
+                  "  pm.expect(data).to.have.property('nombre_rol');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/perfil",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "perfil"
+              ]
+            },
+            "description": "Endpoint protegido por JWT (middleware requireAuth). Con un token válido en el header Authorization, debe devolver el perfil del usuario autenticado."
+          }
+        },
+        {
+          "name": "1.6 Perfil - sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 - token no proporcionado', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/perfil",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "perfil"
+              ]
+            },
+            "description": "Misma ruta protegida, pero sin enviar el header Authorization. Debe rechazarse con 401, evidenciando que el JWT es obligatorio."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Usuarios",
+      "item": [
+        {
+          "name": "2.1 GET listar usuarios - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => Array.isArray(pm.response.json()));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/usuarios",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios"
+              ]
+            },
+            "description": "Consulta de usuarios (solo administrador/empleado, ruta protegida por JWT)."
+          }
+        },
+        {
+          "name": "2.2 GET listar usuarios - sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 - token no proporcionado', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/usuarios",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios"
+              ]
+            },
+            "description": "Misma consulta, sin JWT. Debe rechazarse con 401."
+          }
+        },
+        {
+          "name": "2.3 POST crear empleado - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const data = pm.response.json();",
+                  "if (data.usuario && data.usuario.id_usuario) { pm.collectionVariables.set('id_usuario_creado', data.usuario.id_usuario); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/usuarios",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Laura\",\n  \"apellido\": \"Gómez\",\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"1099887766\",\n  \"direccion\": \"Cra 45 # 12-30\",\n  \"telefono\": \"3005551234\",\n  \"email\": \"laura.gomez@elymarquez.com\",\n  \"password\": \"claveSegura123\",\n  \"id_rol\": 2,\n  \"estado\": \"activo\"\n}"
+            },
+            "description": "Solo un administrador autenticado puede registrar empleados. Guarda automáticamente el id_usuario_creado."
+          }
+        },
+        {
+          "name": "2.4 POST crear usuario - datos inválidos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 - datos inválidos', () => pm.response.to.have.status(400));",
+                  "pm.test('Respuesta incluye lista de errores', () => {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data).to.have.property('errores');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/usuarios",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"L\",\n  \"apellido\": \"Gómez\",\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"1099887766\",\n  \"direccion\": \"Cra 45 # 12-30\",\n  \"telefono\": \"6005551234\",\n  \"email\": \"laura.gomez@elymarquez.com\",\n  \"password\": \"1234\",\n  \"id_rol\": 2,\n  \"estado\": \"activo\"\n}"
+            },
+            "description": "Nombre demasiado corto, teléfono que no inicia en 3 y contraseña que no cumple la política. Debe responder 400 con el detalle de errores."
+          }
+        },
+        {
+          "name": "2.5 PUT actualizar usuario - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/usuarios/{{id_usuario_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "{{id_usuario_creado}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telefono\": \"3009998888\",\n  \"direccion\": \"Cra 45 # 12-30 Apto 501\"\n}"
+            },
+            "description": "Actualización de usuarios (solo administrador)."
+          }
+        },
+        {
+          "name": "2.6 PUT actualizar usuario - id_rol inválido (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 - id_rol inválido', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/usuarios/{{id_usuario_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "{{id_usuario_creado}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_rol\": 99\n}"
+            },
+            "description": "Envía un id_rol que no existe (99). Debe responder 400."
+          }
+        },
+        {
+          "name": "2.7 PATCH cambiar estado - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/usuarios/{{id_usuario_creado}}/estado",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "{{id_usuario_creado}}",
+                "estado"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"inactivo\"\n}"
+            },
+            "description": "Cambio de estado de un usuario (activo/inactivo/bloqueado)."
+          }
+        },
+        {
+          "name": "2.8 PATCH cambiar estado - valor inválido (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 - estado inválido', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/usuarios/{{id_usuario_creado}}/estado",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "{{id_usuario_creado}}",
+                "estado"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"eliminado\"\n}"
+            },
+            "description": "'eliminado' no es un valor permitido (solo activo/inactivo/bloqueado). Debe responder 400."
+          }
+        },
+        {
+          "name": "2.9 GET usuario por id - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Trae el id_usuario esperado', () => {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(String(data.id_usuario)).to.eql(String(pm.collectionVariables.get('id_usuario_creado')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/usuarios/{{id_usuario_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "{{id_usuario_creado}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2.10 GET usuario por id - no encontrado (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 - usuario inexistente', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/usuarios/999999",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "999999"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2.11 DELETE eliminar usuario - sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 - token no proporcionado', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/usuarios/{{id_usuario_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "{{id_usuario_creado}}"
+              ]
+            },
+            "description": "Intento de eliminación sin JWT. Debe rechazarse con 401 antes de tocar la base de datos."
+          }
+        },
+        {
+          "name": "2.12 DELETE eliminar usuario - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/usuarios/{{id_usuario_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "{{id_usuario_creado}}"
+              ]
+            },
+            "description": "Eliminación de usuarios (solo administrador, con JWT válido)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Productos",
+      "item": [
+        {
+          "name": "3.1 GET listar productos - correcto (público)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => Array.isArray(pm.response.json()));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/productos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "productos"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3.2 POST crear producto - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const data = pm.response.json();",
+                  "if (data.id_producto) { pm.collectionVariables.set('id_producto_creado', data.id_producto); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/productos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Labial Mate Dorado\",\n  \"descripcion\": \"Labial de larga duración, acabado mate.\",\n  \"precio\": 45000,\n  \"stock\": 20,\n  \"estado\": \"activo\"\n}"
+            }
+          }
+        },
+        {
+          "name": "3.3 POST crear producto - datos inválidos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 - datos inválidos', () => pm.response.to.have.status(400));",
+                  "pm.test('Respuesta incluye mensaje', () => {",
+                  "  pm.expect(pm.response.json()).to.have.property('mensaje');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/productos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"P\",\n  \"precio\": -10\n}"
+            }
+          }
+        },
+        {
+          "name": "3.4 POST crear producto - sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 - sin token', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/productos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Producto sin token\",\n  \"precio\": 10000\n}"
+            }
+          }
+        },
+        {
+          "name": "3.5 GET producto por id - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Trae el id_producto esperado', () => {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(String(data.id_producto)).to.eql(String(pm.collectionVariables.get('id_producto_creado')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/productos/{{id_producto_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "productos",
+                "{{id_producto_creado}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3.6 GET producto por id - no encontrado (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 - producto inexistente', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/productos/999999",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "productos",
+                "999999"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3.7 PUT actualizar producto - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/productos/{{id_producto_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "productos",
+                "{{id_producto_creado}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"precio\": 39900,\n  \"estado\": \"inactivo\"\n}"
+            }
+          }
+        },
+        {
+          "name": "3.8 PUT actualizar producto - sin campos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 - body vacío', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/productos/{{id_producto_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "productos",
+                "{{id_producto_creado}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "3.9 DELETE eliminar producto - sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 - sin token', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/productos/{{id_producto_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "productos",
+                "{{id_producto_creado}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3.10 DELETE eliminar producto - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/productos/{{id_producto_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "productos",
+                "{{id_producto_creado}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Servicios",
+      "item": [
+        {
+          "name": "4.1 GET listar servicios - correcto (público)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => Array.isArray(pm.response.json()));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/servicios",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicios"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.2 POST crear servicio - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const data = pm.response.json();",
+                  "if (data.id_servicio) { pm.collectionVariables.set('id_servicio_creado', data.id_servicio); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/servicios",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Manicure Spa\",\n  \"descripcion\": \"Manicure con tratamiento hidratante.\",\n  \"precio\": 60000,\n  \"duracion_minutos\": 45,\n  \"estado\": \"activo\"\n}"
+            }
+          }
+        },
+        {
+          "name": "4.3 POST crear servicio - datos inválidos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 - datos inválidos', () => pm.response.to.have.status(400));",
+                  "pm.test('Respuesta incluye mensaje', () => {",
+                  "  pm.expect(pm.response.json()).to.have.property('mensaje');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/servicios",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"S\",\n  \"precio\": -5\n}"
+            }
+          }
+        },
+        {
+          "name": "4.4 POST crear servicio - sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 - sin token', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/servicios",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Servicio sin token\",\n  \"precio\": 20000\n}"
+            }
+          }
+        },
+        {
+          "name": "4.5 GET servicio por id - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Trae el id_servicio esperado', () => {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(String(data.id_servicio)).to.eql(String(pm.collectionVariables.get('id_servicio_creado')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/servicios/{{id_servicio_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicios",
+                "{{id_servicio_creado}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.6 GET servicio por id - no encontrado (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 - servicio inexistente', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/servicios/999999",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicios",
+                "999999"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.7 PUT actualizar servicio - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/servicios/{{id_servicio_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicios",
+                "{{id_servicio_creado}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"precio\": 55000,\n  \"estado\": \"inactivo\"\n}"
+            }
+          }
+        },
+        {
+          "name": "4.8 PUT actualizar servicio - sin campos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 - body vacío', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/servicios/{{id_servicio_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicios",
+                "{{id_servicio_creado}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "4.9 DELETE eliminar servicio - sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 - sin token', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/servicios/{{id_servicio_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicios",
+                "{{id_servicio_creado}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.10 DELETE eliminar servicio - correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/servicios/{{id_servicio_creado}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicios",
+                "{{id_servicio_creado}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

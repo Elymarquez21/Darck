@@ -1,0 +1,96 @@
+{
+  "info": {
+    "_postman_id": "0dbfd9b7-c5ee-4a8d-b542-e193bfb9e278",
+    "name": "Wompi Payments API",
+    "description": "Pruebas del backend de pagos. El webhook solo acepta payloads con un checksum real firmado por Wompi.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000" },
+    { "key": "payment_id", "value": "" },
+    { "key": "reference", "value": "" },
+    { "key": "idempotency_key", "value": "postman-demo-001" },
+    { "key": "event_checksum", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const payment = pm.response.json();",
+                  "  pm.collectionVariables.set('payment_id', payment.payment_id);",
+                  "  pm.collectionVariables.set('reference', payment.reference);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{idempotency_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50000,\n  \"currency\": \"COP\",\n  \"customer_email\": \"cliente@example.com\",\n  \"customer_name\": \"Cliente Demo\",\n  \"description\": \"Pago de prueba\",\n  \"provider\": \"wompi\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/payments",
+            "description": "Crea el pago y guarda payment_id/reference como variables de colección."
+          }
+        },
+        {
+          "name": "Get Payment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/payments/{{payment_id}}"
+          }
+        },
+        {
+          "name": "Get Payment by Reference",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/payments/reference/{{reference}}"
+          }
+        },
+        {
+          "name": "Sync Payment with Wompi",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/payments/{{payment_id}}/sync",
+            "description": "Requiere que el pago ya tenga provider_transaction_id, que normalmente se asigna al recibir transaction.updated."
+          }
+        },
+        {
+          "name": "Wompi Webhook (real signed event)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Event-Checksum", "value": "{{event_checksum}}", "type": "text", "description": "Opcional si el body ya incluye signature.checksum. Debe ser el checksum real de Wompi." }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"transaction.updated\",\n  \"data\": {\n    \"transaction\": {\n      \"id\": \"<transaction-id-real>\",\n      \"amount_in_cents\": 5000000,\n      \"reference\": \"{{reference}}\",\n      \"currency\": \"COP\",\n      \"status\": \"APPROVED\",\n      \"payment_method_type\": \"CARD\"\n    }\n  },\n  \"environment\": \"test\",\n  \"signature\": {\n    \"properties\": [\"transaction.id\", \"transaction.status\", \"transaction.amount_in_cents\"],\n    \"checksum\": \"<checksum-real-de-wompi>\"\n  },\n  \"timestamp\": 1530291411,\n  \"sent_at\": \"<sent-at-del-event-real>\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/webhooks/wompi",
+            "description": "Reemplaza todo el body y el header con un evento real capturado. El ejemplo con placeholders falla deliberadamente en la validación de firma."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+import { useEffect, useState } from 'react'
+import { serviciosApi } from '../services/api'
+import { useAuth } from '../context/AuthContext'
+import { useCart } from '../context/CartContext'
+import { CatalogImage } from '../components/CatalogImage'
+
+// Insignia visual reutilizable para el estado del servicio
+const BadgeEstado = ({ estado }) => {
+  const estilos = {
+    activo: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
+    inactivo: 'bg-cream-dim/10 text-cream-dim border-ink-line',
+  }
+  return (
+    <span
+      className={`text-[11px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full border ${
+        estilos[estado] || estilos.inactivo
+      }`}
+    >
+      {estado}
+    </span>
+  )
+}
+
+// Página pública: catálogo de servicios con su duración estimada.
+// Consume GET /api/servicios, que no requiere sesión iniciada.
+export const Servicios = () => {
+  const { rol } = useAuth()
+  const { agregarItem } = useCart()
+  const [servicios, setServicios] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
+  const [busqueda, setBusqueda] = useState('')
+
+  useEffect(() => {
+    const cargarServicios = async () => {
+      try {
+        setCargando(true)
+        const datos = await serviciosApi.listar()
+        setServicios(datos)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setCargando(false)
+      }
+    }
+    cargarServicios()
+  }, [])
+
+  const serviciosFiltrados = servicios.filter((s) => {
+    const coincideNombre = s.nombre?.toLowerCase().includes(busqueda.toLowerCase())
+    const coincideCategoria = s.categoria?.toLowerCase().includes(busqueda.toLowerCase())
+    return coincideNombre || coincideCategoria
+  })
+
+  return (
+    <div className="min-h-[80vh] px-4 md:px-10 py-10 max-w-6xl mx-auto">
+      <div className="mb-8">
+        <h1 className="font-display italic text-3xl font-semibold text-gold-shine">
+          Nuestros Servicios
+        </h1>
+        <p className="text-cream-dim mt-1">
+          Consulta el portafolio completo de servicios y su duración estimada.
+        </p>
+      </div>
+
+      {/* Barra de resumen y búsqueda */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <p className="text-cream-dim text-sm">
+          <span className="text-gold-light font-semibold">{servicios.length}</span> servicios disponibles
+        </p>
+        <input
+          type="text"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar por nombre o categoría..."
+          className="w-full sm:w-72 bg-ink-soft border border-ink-line rounded-lg px-4 py-2 text-cream placeholder:text-cream-dim/50 focus:outline-none focus:border-gold/60 transition-colors"
+        />
+      </div>
+
+      {error && (
+        <p className="text-crimson-bright bg-ink-soft border border-crimson-bright/30 rounded-lg px-4 py-2 mb-6 text-sm">
+          {error}
+        </p>
+      )}
+
+      {cargando ? (
+        <p className="text-cream-dim">Cargando servicios...</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {serviciosFiltrados.map((s) => (
+            <div
+              key={s.id_servicio}
+              className="bg-ink-soft border border-ink-line rounded-xl p-4 flex flex-col animate-[fadeIn_0.3s_ease-out]"
+            >
+              <CatalogImage
+                src={s.imagen_url}
+                alt={`Imagen de ${s.nombre}`}
+                className="mb-4 h-44 w-full rounded-lg object-cover"
+              />
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-display italic text-lg text-gold-light">{s.nombre}</h3>
+                {s.estado && <BadgeEstado estado={s.estado} />}
+              </div>
+              {s.categoria && (
+                <p className="text-cream-dim/70 text-xs uppercase tracking-wide mt-1">{s.categoria}</p>
+              )}
+              <p className="text-cream-dim text-sm mt-2 flex-1">{s.descripcion || 'Sin descripción'}</p>
+              <p className="text-cream mt-3 font-semibold text-lg">
+                ${Number(s.precio).toLocaleString('es-CO')}
+              </p>
+              <p className="text-cream-dim/70 text-xs mt-1">Duración: {s.duracion_minutos} min</p>
+              {rol === 'cliente' && (
+                <button
+                  type="button"
+                  onClick={() => agregarItem({
+                    key: `servicio-${s.id_servicio}`,
+                    tipo: 'servicio',
+                    id: s.id_servicio,
+                    nombre: s.nombre,
+                    precio: s.precio,
+                  })}
+                  disabled={s.estado !== 'activo'}
+                  className="mt-4 w-full rounded-lg bg-crimson-bright px-3 py-2 text-sm font-semibold text-cream transition-colors hover:bg-crimson disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Agregar al carrito
+                </button>
+              )}
+            </div>
+          ))}
+          {serviciosFiltrados.length === 0 && (
+            <p className="text-cream-dim col-span-full text-center py-10">
+              No se encontraron servicios con ese criterio.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

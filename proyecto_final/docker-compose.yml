@@ -1,0 +1,84 @@
+services:
+  api:
+    build:
+      context: ./backend_fastapi
+      dockerfile: Dockerfile
+    environment:
+      PORT: 8000
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      DATABASE_URL: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD:-local_only_mysql_password}@mysql:3306/ely_marquez_db?charset=utf8mb4
+      DATABASE_SSL_VERIFY: "false"
+      PAYMENTS_DATABASE_URL: postgresql+asyncpg://postgres:${PAYMENTS_DB_PASSWORD:-local_only_payment_db_password}@postgres:5432/payments
+      PAYMENT_ENV: ${PAYMENT_ENV:-sandbox}
+      WOMPI_PUBLIC_KEY: ${WOMPI_PUBLIC_KEY:-}
+      WOMPI_PRIVATE_KEY: ${WOMPI_PRIVATE_KEY:-}
+      WOMPI_EVENTS_SECRET: ${WOMPI_EVENTS_SECRET:-}
+      WOMPI_INTEGRITY_SECRET: ${WOMPI_INTEGRITY_SECRET:-}
+      WOMPI_API_URL: ${WOMPI_API_URL:-https://sandbox.wompi.co/v1}
+      APP_URL: ${APP_URL:-http://localhost:5173/payment-return}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)"]
+      interval: 15s
+      timeout: 7s
+      retries: 10
+
+  migrate:
+    build:
+      context: ./backend_fastapi
+      dockerfile: Dockerfile
+    command: ["sh", "-c", "alembic upgrade head && alembic -c payments_alembic.ini upgrade head"]
+    environment:
+      DATABASE_URL: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD:-local_only_mysql_password}@mysql:3306/ely_marquez_db?charset=utf8mb4
+      DATABASE_SSL_VERIFY: "false"
+      PAYMENTS_DATABASE_URL: postgresql+asyncpg://postgres:${PAYMENTS_DB_PASSWORD:-local_only_payment_db_password}@postgres:5432/payments
+    depends_on:
+      mysql:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: payments
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PAYMENTS_DB_PASSWORD:-local_only_payment_db_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - payments-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d payments"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-local_only_mysql_password}
+      MYSQL_DATABASE: ely_marquez_db
+    volumes:
+      - application-mysql-data:/var/lib/mysql
+      - ./backend_fastapi/database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  payments-postgres-data:
+  application-mysql-data:

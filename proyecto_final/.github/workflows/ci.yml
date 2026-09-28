@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "backend_fastapi/**"
+      - ".github/workflows/ci.yml"
+      - "vercel.json"
+      - ".env.example"
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "backend_fastapi/**"
+      - ".github/workflows/ci.yml"
+      - "vercel.json"
+      - ".env.example"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - 'vercel.json'
+            backend:
+              - 'backend_fastapi/**'
+              - 'vercel.json'
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: payments
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d payments"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: backend_fastapi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend_fastapi/requirements.txt
+      - run: python -m pip install -r requirements.txt ruff schemathesis
+      - name: Ruff lint
+        run: ruff check app tests alembic
+      - name: Ruff format
+        run: ruff format --check app tests alembic
+      - name: Pytest
+        env:
+          SECRET_KEY: CI_ONLY_SECRET_KEY_REPLACE_THIS_VALUE
+          DATABASE_URL: mysql+pymysql://ci:ci@127.0.0.1:3306/ci?charset=utf8mb4
+        run: pytest -q
+      - name: Export and validate OpenAPI contract
+        env:
+          SECRET_KEY: CI_ONLY_SECRET_KEY_REPLACE_THIS_VALUE
+        run: |
+          uvicorn app.main:app --host 127.0.0.1 --port 8000 >/tmp/payments-api.log 2>&1 &
+          for attempt in $(seq 1 20); do
+            if curl --silent --fail http://127.0.0.1:8000/openapi.json >/dev/null; then break; fi
+            sleep 1
+          done
+          schemathesis run http://127.0.0.1:8000/openapi.json --dry-run --validate-schema=true
+      - name: Apply migrations against TiDB Serverless test database
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          DATABASE_URL: ${{ secrets.TIDB_TEST_DATABASE_URL }}
+          DATABASE_SSL_VERIFY: "true"
+        shell: bash
+        run: |
+          if [[ -z "$DATABASE_URL" ]]; then
+            echo "TIDB_TEST_DATABASE_URL is not configured; TiDB migration compatibility check skipped."
+            exit 0
+          fi
+          alembic upgrade head
+      - name: Apply payment migrations against PostgreSQL
+        env:
+          PAYMENTS_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/payments
+        run: alembic -c payments_alembic.ini upgrade head

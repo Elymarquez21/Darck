@@ -1,0 +1,176 @@
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import "tailwindcss";
+
+/* ---------- Ely Marquez · Design Tokens ---------- */
+@theme {
+  --color-ink: #150a09;
+  --color-ink-soft: #1f120f;
+  --color-ink-line: #3a2420;
+  --color-crimson: #7a0f24;
+  --color-crimson-bright: #c81e3a;
+  --color-crimson-deep: #4a0715;
+  --color-gold: #c9a227;
+  --color-gold-light: #f1d98b;
+  --color-gold-soft: #e9c766;
+  --color-cream: #faf1e6;
+  --color-cream-dim: #e7d5c3;
+
+  --font-display: "Playfair Display", "Georgia", serif;
+  --font-body: "Manrope", "Segoe UI", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-ink);
+}
+
+/* ---------- Animations ---------- */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drawLine {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes sparkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+}
+
+@keyframes floatSoft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes shimmerText {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(201, 162, 39, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(201, 162, 39, 0);
+  }
+}
+
+/* ---------- Reusable brand utilities ---------- */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.text-gold-shine {
+  background: linear-gradient(
+    90deg,
+    var(--color-gold-soft),
+    var(--color-gold-light),
+    var(--color-gold-soft),
+    var(--color-gold)
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmerText 4s linear infinite;
+}
+
+.gold-divider {
+  height: 2px;
+  border: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-gold) 20%,
+    var(--color-gold-light) 50%,
+    var(--color-gold) 80%,
+    transparent
+  );
+  transform-origin: center;
+  animation: drawLine 0.8s ease-out both;
+}
+
+/* Signature "gloss sweep" — a light sheen that glides across on hover,
+   evoking the sheen of a swiped lipstick / gloss packaging. */
+.sheen {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 40%,
+    rgba(241, 217, 139, 0.45) 48%,
+    rgba(255, 255, 255, 0.75) 52%,
+    rgba(241, 217, 139, 0.45) 56%,
+    transparent 64%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.7s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.sheen:hover::after,
+.sheen:focus-visible::after {
+  transform: translateX(130%);
+}
+
+.sparkle-dot {
+  position: absolute;
+  color: var(--color-gold-light);
+  animation: sparkle 2.6s ease-in-out infinite;
+  pointer-events: none;
+  user-select: none;
+}
