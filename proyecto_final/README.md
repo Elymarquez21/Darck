@@ -7,7 +7,7 @@ hacia una arquitectura Full Stack con **FastAPI (Python)** en el backend,
 ```
 proyecto/
 â”œâ”€â”€ frontend/          â†’ React + Vite (SIN CAMBIOS respecto al avance anterior)
-â””â”€â”€ backend_fastapi/   â†’ Python + FastAPI + MySQL (nuevo backend)
+â””â”€â”€ backend_fastapi/   â†’ Python + FastAPI + MySQL (nuevo backend)..
 ```
 
 ## QuÃ© se conservÃ³ del proyecto original
@@ -93,14 +93,14 @@ Frontend (mensaje de Ã©xito y redirecciÃ³n a /login)
 Cada carpeta (`frontend/` y `backend_fastapi/`) tiene su propio
 `README.md` con mÃ¡s detalle.
 
-## Quinto avance: ventas, facturación y dashboard
+## Quinto avance: ventas, facturaciï¿½n y dashboard
 
-Para actualizar una base existente, vuelve a ejecutar `backend_fastapi/database/schema.sql`; el script agrega `facturas` y `pqrs` además de las tablas de ventas. Instala las dependencias del backend con `pip install -r backend_fastapi/requirements.txt` para habilitar la exportación XLSX (`openpyxl`).
+Para actualizar una base existente, vuelve a ejecutar `backend_fastapi/database/schema.sql`; el script agrega `facturas` y `pqrs` ademï¿½s de las tablas de ventas. Instala las dependencias del backend con `pip install -r backend_fastapi/requirements.txt` para habilitar la exportaciï¿½n XLSX (`openpyxl`).
 
-El panel administrativo incluye indicadores consolidados y acceso al historial de ventas y facturas. El reporte diario se descarga como PDF o Excel; cada venta genera una factura con número consecutivo basado en el identificador de la venta. Las facturas se pueden filtrar por número, cliente y fecha, y descargar en PDF. Los clientes autenticados pueden registrar PQR en `POST /api/pqrs`; el dashboard muestra total y pendientes.
+El panel administrativo incluye indicadores consolidados y acceso al historial de ventas y facturas. El reporte diario se descarga como PDF o Excel; cada venta genera una factura con nï¿½mero consecutivo basado en el identificador de la venta. Las facturas se pueden filtrar por nï¿½mero, cliente y fecha, y descargar en PDF. Los clientes autenticados pueden registrar PQR en `POST /api/pqrs`; el dashboard muestra total y pendientes.
 
-El dashboard de ventas (`GET /api/dashboard/ventas`) ofrece agregaciones diarias, semanales o mensuales y acepta filtros por rango de fechas, producto, servicio, estado y cliente. La respuesta restringe automáticamente las consultas de clientes a sus propias compras; administración y empleados consultan según sus permisos. El Frontend dibuja Cards, barras y línea con esos datos dinámicos.
+El dashboard de ventas (`GET /api/dashboard/ventas`) ofrece agregaciones diarias, semanales o mensuales y acepta filtros por rango de fechas, producto, servicio, estado y cliente. La respuesta restringe automï¿½ticamente las consultas de clientes a sus propias compras; administraciï¿½n y empleados consultan segï¿½n sus permisos. El Frontend dibuja Cards, barras y lï¿½nea con esos datos dinï¿½micos.
 
 ## PQR y asistente virtual
 
-El cliente registra y consulta sus PQR en el panel; los roles de administración y empleado revisan y actualizan estados. El sitio incorpora un asistente conectado a `POST /api/chatbot/message`. Cuando `OPENAI_API_KEY` está configurada en el backend, usa el modelo establecido por `OPENAI_MODEL`; sin clave responde con una guía FAQ y el catálogo activo. Consulta `DEPLOY.md` para preparar los servicios Docker y Railway.
+El cliente registra y consulta sus PQR en el panel; los roles de administraciï¿½n y empleado revisan y actualizan estados. El sitio incorpora un asistente conectado a `POST /api/chatbot/message`. Cuando `OPENAI_API_KEY` estï¿½ configurada en el backend, usa el modelo establecido por `OPENAI_MODEL`; sin clave responde con una guï¿½a FAQ y el catï¿½logo activo. Consulta `DEPLOY.md` para preparar los servicios Docker y Railway.
